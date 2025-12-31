@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一年讀經計畫 (GitHub 同步版)</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --status-bg: #eee;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* 設定按鈕樣式 */
+        .settings-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: none;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .settings-btn:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-top: 10px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        #sync-status {
+            font-size: 0.85em;
+            padding: 4px 12px;
+            border-radius: 15px;
+            background-color: var(--status-bg);
+            color: #666;
+            display: inline-block;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .status-saving { color: #e67e22 !important; background-color: #fdf2e9 !important; }
+        .status-success { color: #27ae60 !important; background-color: #eafaf1 !important; }
+        .status-error { color: #c0392b !important; background-color: #fdedec !important; }
+
+        .progress-container {
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            width: 100%;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background-color: var(--accent-color);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .day-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+        }
+        
+        .day-info { flex-grow: 1; }
+        .day-number { font-weight: bold; color: var(--accent-color); margin-bottom: 5px; display: block; }
+        .readings { display: flex; flex-wrap: wrap; gap: 15px; }
+        .reading-item { display: flex; align-items: center; font-size: 0.95em; }
+        
+        .checkbox-wrapper { margin-right: 15px; display: flex; align-items: center; }
+        input[type="checkbox"] { transform: scale(1.5); cursor: pointer; accent-color: var(--accent-color); }
+        .completed { opacity: 0.6; text-decoration: line-through; }
+
+        /* 彈出視窗 (Modal) 樣式 */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .save-btn {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1em;
+        }
+        .save-btn:hover { background-color: #2980b9; }
+
+        /* Loading */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 999; font-size: 1.5em; color: var(--accent-color);
+            flex-direction: column;
+            display: none; /* 預設隱藏 */
+        }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-color);
+            border-radius: 50%; width: 40px; height: 40px;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 600px) {
+            .readings { flex-direction: column; gap: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">正在與 GitHub 同步...</div>
+</div>
+
+<div id="settings-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeSettings()">&times;</span>
+        <h2>GitHub 設定</h2>
+        <p style="font-size:0.9em; color:#666;">請輸入您的 GitHub 資訊以啟用雲端同步。</p>
+        
+        <div class="form-group">
+            <label for="gh-token">GitHub Token (PAT)</label>
+            <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx">
+        </div>
+        <div class="form-group">
+            <label for="gh-username">使用者名稱 (Username)</label>
+            <input type="text" id="gh-username" placeholder="例如: yourname">
+        </div>
+        <div class="form-group">
+            <label for="gh-repo">Repository 名稱</label>
+            <input type="text" id="gh-repo" placeholder="例如: bible-plan">
+        </div>
+        <button class="save-btn" onclick="saveSettings()">儲存並同步</button>
+    </div>
+</div>
+
+<div class="container">
+    <button class="settings-btn" onclick="openSettings()">⚙️ 設定</button>
+
+    <header>
+        <h1>☁️ 雲端讀經計畫</h1>
+        <div id="sync-status">未設定 GitHub</div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">完成進度：計算中...</div>
+    </header>
+
+    <div id="plan-list"></div>
+</div>
+
+<script>
+    // ==========================================
+    // ⚠️ 請在此處貼上完整的 365 天資料
+    // ==========================================
+    // 完整的 365 天讀經計畫資料
+    const rawPlanData = [
+        { day: 1, ot: "Genesis 1-2", nt: "Matthew 1", ps: "Psalm 1" },
+        { day: 2, ot: "Genesis 3-4", nt: "Matthew 2", ps: "Psalm 2" },
+        { day: 3, ot: "Genesis 5-6", nt: "Matthew 3", ps: "Psalm 3" },
+        { day: 4, ot: "Genesis 7-8", nt: "Matthew 4", ps: "Proverbs 1:1-7" },
+        { day: 5, ot: "Genesis 9-10", nt: "Matthew 5:1-26", ps: "Psalm 4" },
+        { day: 6, ot: "Genesis 11-12", nt: "Matthew 5:27-48", ps: "Psalm 5" },
+        { day: 7, ot: "Genesis 13-14", nt: "Matthew 6:1-18", ps: "Psalm 6" },
+        { day: 8, ot: "Genesis 15-17", nt: "Matthew 6:19-34", ps: "Proverbs 1:8-19" },
+        { day: 9, ot: "Genesis 18-19", nt: "Matthew 7", ps: "Psalm 7" },
+        { day: 10, ot: "Genesis 20-22", nt: "Matthew 8:1-17", ps: "Psalm 8" },
+        { day: 11, ot: "Genesis 23-24", nt: "Matthew 8:18-34", ps: "Psalm 9:1-12" },
+        { day: 12, ot: "Genesis 25-26", nt: "Matthew 9:1-17", ps: "Proverbs 1:20-33" },
+        { day: 13, ot: "Genesis 27-28", nt: "Matthew 9:18-38", ps: "Psalm 9:13-20" },
+        { day: 14, ot: "Genesis 29-30", nt: "Matthew 10:1-23", ps: "Psalm 10:1-11" },
+        { day: 15, ot: "Genesis 31-32", nt: "Matthew 10:24-42", ps: "Psalm 10:12-18" },
+        { day: 16, ot: "Genesis 33-35", nt: "Matthew 11", ps: "Proverbs 2:1-11" },
+        { day: 17, ot: "Genesis 36-37", nt: "Matthew 12:1-21", ps: "Psalm 11" },
+        { day: 18, ot: "Genesis 38-40", nt: "Matthew 12:22-50", ps: "Psalm 12" },
+        { day: 19, ot: "Genesis 41", nt: "Matthew 13:1-32", ps: "Psalm 13" },
+        { day: 20, ot: "Genesis 42-43", nt: "Matthew 13:33-58", ps: "Proverbs 2:12-22" },
+        { day: 21, ot: "Genesis 44-45", nt: "Matthew 14:1-21", ps: "Psalm 14" },
+        { day: 22, ot: "Genesis 46-48", nt: "Matthew 14:22-36", ps: "Psalm 15" },
+        { day: 23, ot: "Genesis 49-50", nt: "Matthew 15:1-20", ps: "Psalm 16" },
+        { day: 24, ot: "Exodus 1-3", nt: "Matthew 15:21-39", ps: "Proverbs 3:1-10" },
+        { day: 25, ot: "Exodus 4-6", nt: "Matthew 16", ps: "Psalm 17" },
+        { day: 26, ot: "Exodus 7-8", nt: "Matthew 17", ps: "Psalm 18:1-15" },
+        { day: 27, ot: "Exodus 9-10", nt: "Matthew 18:1-20", ps: "Psalm 18:16-36" },
+        { day: 28, ot: "Exodus 11-12", nt: "Matthew 18:21-35", ps: "Proverbs 3:11-20" },
+        { day: 29, ot: "Exodus 13-15", nt: "Matthew 19:1-15", ps: "Psalm 18:37-50" },
+        { day: 30, ot: "Exodus 16-18", nt: "Matthew 19:16-30", ps: "Psalm 19" },
+        { day: 31, ot: "Exodus 19-20", nt: "Matthew 20:1-16", ps: "Psalm 20" },
+        { day: 32, ot: "Exodus 21-22", nt: "Matthew 20:17-34", ps: "Proverbs 3:21-35" },
+        { day: 33, ot: "Exodus 23-24", nt: "Matthew 21:1-22", ps: "Psalm 21" },
+        { day: 34, ot: "Exodus 25-26", nt: "Matthew 21:23-46", ps: "Psalm 22:1-11" },
+        { day: 35, ot: "Exodus 27-28", nt: "Matthew 22:1-22", ps: "Psalm 22:12-31" },
+        { day: 36, ot: "Exodus 29-30", nt: "Matthew 22:23-46", ps: "Proverbs 4:1-9" },
+        { day: 37, ot: "Exodus 31-33", nt: "Matthew 23:1-22", ps: "Psalm 23" },
+        { day: 38, ot: "Exodus 34-36", nt: "Matthew 23:23-39", ps: "Psalm 24" },
+        { day: 39, ot: "Exodus 37-38", nt: "Matthew 24:1-28", ps: "Psalm 25:1-11" },
+        { day: 40, ot: "Exodus 39-40", nt: "Matthew 24:29-51", ps: "Proverbs 4:10-19" },
+        { day: 41, ot: "Leviticus 1-3", nt: "Matthew 25:1-30", ps: "Psalm 25:12-22" },
+        { day: 42, ot: "Leviticus 4-5", nt: "Matthew 25:31-46", ps: "Psalm 26" },
+        { day: 43, ot: "Leviticus 6-7", nt: "Matthew 26:1-25", ps: "Psalm 27" },
+        { day: 44, ot: "Leviticus 8-9", nt: "Matthew 26:26-46", ps: "Proverbs 4:20-27" },
+        { day: 45, ot: "Leviticus 10-12", nt: "Matthew 26:47-75", ps: "Psalm 28" },
+        { day: 46, ot: "Leviticus 13", nt: "Matthew 27:1-26", ps: "Psalm 29" },
+        { day: 47, ot: "Leviticus 14", nt: "Matthew 27:27-50", ps: "Psalm 30" },
+        { day: 48, ot: "Leviticus 15-16", nt: "Matthew 27:51-66", ps: "Proverbs 5:1-14" },
+        { day: 49, ot: "Leviticus 17-18", nt: "Matthew 28", ps: "Psalm 31:1-8" },
+        { day: 50, ot: "Leviticus 19-20", nt: "Mark 1:1-20", ps: "Psalm 31:9-24" },
+        { day: 51, ot: "Leviticus 21-22", nt: "Mark 1:21-45", ps: "Psalm 32" },
+        { day: 52, ot: "Leviticus 23-24", nt: "Mark 2", ps: "Proverbs 5:15-23" },
+        { day: 53, ot: "Leviticus 25", nt: "Mark 3:1-19", ps: "Psalm 33:1-11" },
+        { day: 54, ot: "Leviticus 26-27", nt: "Mark 3:20-35", ps: "Psalm 33:12-22" },
+        { day: 55, ot: "Numbers 1-2", nt: "Mark 4:1-20", ps: "Psalm 34:1-10" },
+        { day: 56, ot: "Numbers 3-4", nt: "Mark 4:21-41", ps: "Proverbs 6:1-11" },
+        { day: 57, ot: "Numbers 5-6", nt: "Mark 5:1-20", ps: "Psalm 34:11-22" },
+        { day: 58, ot: "Numbers 7", nt: "Mark 5:21-43", ps: "Psalm 35:1-16" },
+        { day: 59, ot: "Numbers 8-10", nt: "Mark 6:1-29", ps: "Psalm 35:17-28" },
+        { day: 60, ot: "Numbers 11-13", nt: "Mark 6:30-56", ps: "Proverbs 6:12-19" },
+        { day: 61, ot: "Numbers 14-15", nt: "Mark 7:1-13", ps: "Psalm 36" },
+        { day: 62, ot: "Numbers 16-17", nt: "Mark 7:14-37", ps: "Psalm 37:1-11" },
+        { day: 63, ot: "Numbers 18-20", nt: "Mark 8:1-21", ps: "Psalm 37:12-29" },
+        { day: 64, ot: "Numbers 21-22", nt: "Mark 8:22-38", ps: "Proverbs 6:20-29" },
+        { day: 65, ot: "Numbers 23-25", nt: "Mark 9:1-29", ps: "Psalm 37:30-40" },
+        { day: 66, ot: "Numbers 26-27", nt: "Mark 9:30-50", ps: "Psalm 38" },
+        { day: 67, ot: "Numbers 28-30", nt: "Mark 10:1-31", ps: "Psalm 39" },
+        { day: 68, ot: "Numbers 31-32", nt: "Mark 10:32-52", ps: "Proverbs 6:30-35" },
+        { day: 69, ot: "Numbers 33-34", nt: "Mark 11:1-18", ps: "Psalm 40:1-8" },
+        { day: 70, ot: "Numbers 35-36", nt: "Mark 11:19-33", ps: "Psalm 40:9-17" },
+        { day: 71, ot: "Deuteronomy 1-2", nt: "Mark 12:1-27", ps: "Psalm 41" },
+        { day: 72, ot: "Deuteronomy 3-4", nt: "Mark 12:28-44", ps: "Proverbs 7:1-5" },
+        { day: 73, ot: "Deuteronomy 5-7", nt: "Mark 13:1-20", ps: "Psalm 42" },
+        { day: 74, ot: "Deuteronomy 8-10", nt: "Mark 13:21-37", ps: "Psalm 43" },
+        { day: 75, ot: "Deuteronomy 11-13", nt: "Mark 14:1-26", ps: "Psalm 44:1-8" },
+        { day: 76, ot: "Deuteronomy 14-16", nt: "Mark 14:27-52", ps: "Proverbs 7:6-23" },
+        { day: 77, ot: "Deuteronomy 17-19", nt: "Mark 14:53-72", ps: "Psalm 44:9-26" },
+        { day: 78, ot: "Deuteronomy 20-22", nt: "Mark 15:1-20", ps: "Psalm 45" },
+        { day: 79, ot: "Deuteronomy 23-25", nt: "Mark 15:21-47", ps: "Psalm 46" },
+        { day: 80, ot: "Deuteronomy 26-27", nt: "Mark 16", ps: "Proverbs 7:24-27" },
+        { day: 81, ot: "Deuteronomy 28", nt: "Luke 1:1-23", ps: "Psalm 47" },
+        { day: 82, ot: "Deuteronomy 29-30", nt: "Luke 1:24-56", ps: "Psalm 48" },
+        { day: 83, ot: "Deuteronomy 31-32", nt: "Luke 1:57-80", ps: "Psalm 49" },
+        { day: 84, ot: "Deuteronomy 33-34", nt: "Luke 2:1-24", ps: "Proverbs 8:1-11" },
+        { day: 85, ot: "Joshua 1-3", nt: "Luke 2:25-52", ps: "Psalm 50" },
+        { day: 86, ot: "Joshua 4-6", nt: "Luke 3", ps: "Psalm 51:1-9" },
+        { day: 87, ot: "Joshua 7-8", nt: "Luke 4:1-30", ps: "Psalm 51:10-19" },
+        { day: 88, ot: "Joshua 9-10", nt: "Luke 4:31-44", ps: "Proverbs 8:12-21" },
+        { day: 89, ot: "Joshua 11-13", nt: "Luke 5:1-16", ps: "Psalm 52" },
+        { day: 90, ot: "Joshua 14-15", nt: "Luke 5:17-39", ps: "Psalm 53" },
+        { day: 91, ot: "Joshua 16-18", nt: "Luke 6:1-26", ps: "Psalm 54" },
+        { day: 92, ot: "Joshua 19-20", nt: "Luke 6:27-49", ps: "Proverbs 8:22-36" },
+        { day: 93, ot: "Joshua 21-22", nt: "Luke 7:1-30", ps: "Psalm 55:1-11" },
+        { day: 94, ot: "Joshua 23-24", nt: "Luke 7:31-50", ps: "Psalm 55:12-23" },
+        { day: 95, ot: "Judges 1-2", nt: "Luke 8:1-21", ps: "Psalm 56" },
+        { day: 96, ot: "Judges 3-5", nt: "Luke 8:22-56", ps: "Proverbs 9:1-12" },
+        { day: 97, ot: "Judges 6-7", nt: "Luke 9:1-27", ps: "Psalm 57" },
+        { day: 98, ot: "Judges 8-9", nt: "Luke 9:28-62", ps: "Psalm 58" },
+        { day: 99, ot: "Judges 10-11", nt: "Luke 10:1-24", ps: "Psalm 59" },
+        { day: 100, ot: "Judges 12-14", nt: "Luke 10:25-42", ps: "Proverbs 9:13-18" },
+        { day: 101, ot: "Judges 15-17", nt: "Luke 11:1-28", ps: "Psalm 60" },
+        { day: 102, ot: "Judges 18-19", nt: "Luke 11:29-54", ps: "Psalm 61" },
+        { day: 103, ot: "Judges 20-21", nt: "Luke 12:1-31", ps: "Psalm 62" },
+        { day: 104, ot: "Ruth 1-4", nt: "Luke 12:32-59", ps: "Proverbs 10:1-10" },
+        { day: 105, ot: "1 Samuel 1-3", nt: "Luke 13:1-17", ps: "Psalm 63" },
+        { day: 106, ot: "1 Samuel 4-6", nt: "Luke 13:18-35", ps: "Psalm 64" },
+        { day: 107, ot: "1 Samuel 7-9", nt: "Luke 14:1-24", ps: "Psalm 65" },
+        { day: 108, ot: "1 Samuel 10-12", nt: "Luke 14:25-35", ps: "Proverbs 10:11-20" },
+        { day: 109, ot: "1 Samuel 13-14", nt: "Luke 15:1-10", ps: "Psalm 66" },
+        { day: 110, ot: "1 Samuel 15-16", nt: "Luke 15:11-32", ps: "Psalm 67" },
+        { day: 111, ot: "1 Samuel 17-18", nt: "Luke 16:1-18", ps: "Psalm 68:1-18" },
+        { day: 112, ot: "1 Samuel 19-21", nt: "Luke 16:19-31", ps: "Proverbs 10:21-30" },
+        { day: 113, ot: "1 Samuel 22-24", nt: "Luke 17:1-19", ps: "Psalm 68:19-35" },
+        { day: 114, ot: "1 Samuel 25-26", nt: "Luke 17:20-37", ps: "Psalm 69:1-12" },
+        { day: 115, ot: "1 Samuel 27-29", nt: "Luke 18:1-17", ps: "Psalm 69:13-28" },
+        { day: 116, ot: "1 Samuel 30-31", nt: "Luke 18:18-43", ps: "Proverbs 10:31-32" },
+        { day: 117, ot: "2 Samuel 1-3", nt: "Luke 19:1-27", ps: "Psalm 69:29-36" },
+        { day: 118, ot: "2 Samuel 4-6", nt: "Luke 19:28-48", ps: "Psalm 70" },
+        { day: 119, ot: "2 Samuel 7-9", nt: "Luke 20:1-26", ps: "Psalm 71:1-14" },
+        { day: 120, ot: "2 Samuel 10-12", nt: "Luke 20:27-47", ps: "Proverbs 11:1-8" },
+        { day: 121, ot: "2 Samuel 13-14", nt: "Luke 21:1-19", ps: "Psalm 71:15-24" },
+        { day: 122, ot: "2 Samuel 15-16", nt: "Luke 21:20-38", ps: "Psalm 72" },
+        { day: 123, ot: "2 Samuel 17-18", nt: "Luke 22:1-30", ps: "Psalm 73:1-14" },
+        { day: 124, ot: "2 Samuel 19-20", nt: "Luke 22:31-53", ps: "Proverbs 11:9-18" },
+        { day: 125, ot: "2 Samuel 21-22", nt: "Luke 22:54-71", ps: "Psalm 73:15-28" },
+        { day: 126, ot: "2 Samuel 23-24", nt: "Luke 23:1-25", ps: "Psalm 74:1-9" },
+        { day: 127, ot: "1 Kings 1-2", nt: "Luke 23:26-56", ps: "Psalm 74:10-23" },
+        { day: 128, ot: "1 Kings 3-5", nt: "Luke 24:1-35", ps: "Proverbs 11:19-28" },
+        { day: 129, ot: "1 Kings 6-7", nt: "Luke 24:36-53", ps: "Psalm 75" },
+        { day: 130, ot: "1 Kings 8-9", nt: "John 1:1-28", ps: "Psalm 76" },
+        { day: 131, ot: "1 Kings 10-11", nt: "John 1:29-51", ps: "Psalm 77" },
+        { day: 132, ot: "1 Kings 12-13", nt: "John 2", ps: "Proverbs 11:29-31" },
+        { day: 133, ot: "1 Kings 14-15", nt: "John 3:1-21", ps: "Psalm 78:1-8" },
+        { day: 134, ot: "1 Kings 16-18", nt: "John 3:22-36", ps: "Psalm 78:9-16" },
+        { day: 135, ot: "1 Kings 19-20", nt: "John 4:1-26", ps: "Psalm 78:17-31" },
+        { day: 136, ot: "1 Kings 21-22", nt: "John 4:27-54", ps: "Proverbs 12:1-7" },
+        { day: 137, ot: "2 Kings 1-3", nt: "John 5:1-24", ps: "Psalm 78:32-39" },
+        { day: 138, ot: "2 Kings 4-5", nt: "John 5:25-47", ps: "Psalm 78:40-55" },
+        { day: 139, ot: "2 Kings 6-8", nt: "John 6:1-24", ps: "Psalm 78:56-72" },
+        { day: 140, ot: "2 Kings 9-11", nt: "John 6:25-59", ps: "Proverbs 12:8-17" },
+        { day: 141, ot: "2 Kings 12-14", nt: "John 6:60-71", ps: "Psalm 79" },
+        { day: 142, ot: "2 Kings 15-17", nt: "John 7:1-27", ps: "Psalm 80" },
+        { day: 143, ot: "2 Kings 18-19", nt: "John 7:28-53", ps: "Psalm 81" },
+        { day: 144, ot: "2 Kings 20-22", nt: "John 8:1-30", ps: "Proverbs 12:18-28" },
+        { day: 145, ot: "2 Kings 23-25", nt: "John 8:31-59", ps: "Psalm 82" },
+        { day: 146, ot: "1 Chronicles 1-2", nt: "John 9:1-23", ps: "Psalm 83" },
+        { day: 147, ot: "1 Chronicles 3-5", nt: "John 9:24-41", ps: "Psalm 84" },
+        { day: 148, ot: "1 Chronicles 6", nt: "John 10:1-21", ps: "Proverbs 13:1-9" },
+        { day: 149, ot: "1 Chronicles 7-8", nt: "John 10:22-42", ps: "Psalm 85" },
+        { day: 150, ot: "1 Chronicles 9-10", nt: "John 11:1-27", ps: "Psalm 86" },
+        { day: 151, ot: "1 Chronicles 11-12", nt: "John 11:28-57", ps: "Psalm 87" },
+        { day: 152, ot: "1 Chronicles 13-15", nt: "John 12:1-26", ps: "Proverbs 13:10-19" },
+        { day: 153, ot: "1 Chronicles 16-18", nt: "John 12:27-50", ps: "Psalm 88" },
+        { day: 154, ot: "1 Chronicles 19-21", nt: "John 13:1-20", ps: "Psalm 89:1-18" },
+        { day: 155, ot: "1 Chronicles 22-24", nt: "John 13:21-38", ps: "Psalm 89:19-37" },
+        { day: 156, ot: "1 Chronicles 25-27", nt: "John 14", ps: "Proverbs 13:20-25" },
+        { day: 157, ot: "1 Chronicles 28-29", nt: "John 15", ps: "Psalm 89:38-52" },
+        { day: 158, ot: "2 Chronicles 1-3", nt: "John 16:1-15", ps: "Psalm 90" },
+        { day: 159, ot: "2 Chronicles 4-6", nt: "John 16:16-33", ps: "Psalm 91" },
+        { day: 160, ot: "2 Chronicles 7-9", nt: "John 17", ps: "Proverbs 14:1-14" },
+        { day: 161, ot: "2 Chronicles 10-12", nt: "John 18:1-18", ps: "Psalm 92" },
+        { day: 162, ot: "2 Chronicles 13-16", nt: "John 18:19-40", ps: "Psalm 93" },
+        { day: 163, ot: "2 Chronicles 17-19", nt: "John 19:1-22", ps: "Psalm 94" },
+        { day: 164, ot: "2 Chronicles 20-22", nt: "John 19:23-42", ps: "Proverbs 14:15-24" },
+        { day: 165, ot: "2 Chronicles 23-25", nt: "John 20:1-18", ps: "Psalm 95" },
+        { day: 166, ot: "2 Chronicles 26-28", nt: "John 20:19-31", ps: "Psalm 96" },
+        { day: 167, ot: "2 Chronicles 29-31", nt: "John 21", ps: "Psalm 97" },
+        { day: 168, ot: "2 Chronicles 32-33", nt: "Acts 1", ps: "Proverbs 14:25-35" },
+        { day: 169, ot: "2 Chronicles 34-36", nt: "Acts 2:1-21", ps: "Psalm 98" },
+        { day: 170, ot: "Ezra 1-2", nt: "Acts 2:22-47", ps: "Psalm 99" },
+        { day: 171, ot: "Ezra 3-5", nt: "Acts 3", ps: "Psalm 100" },
+        { day: 172, ot: "Ezra 6-8", nt: "Acts 4:1-22", ps: "Proverbs 15:1-10" },
+        { day: 173, ot: "Ezra 9-10", nt: "Acts 4:23-37", ps: "Psalm 101" },
+        { day: 174, ot: "Nehemiah 1-3", nt: "Acts 5:1-16", ps: "Psalm 102" },
+        { day: 175, ot: "Nehemiah 4-6", nt: "Acts 5:17-42", ps: "Psalm 103" },
+        { day: 176, ot: "Nehemiah 7-9", nt: "Acts 6", ps: "Proverbs 15:11-20" },
+        { day: 177, ot: "Nehemiah 10-11", nt: "Acts 7:1-30", ps: "Psalm 104:1-18" },
+        { day: 178, ot: "Nehemiah 12-13", nt: "Acts 7:31-60", ps: "Psalm 104:19-35" },
+        { day: 179, ot: "Esther 1-3", nt: "Acts 8:1-25", ps: "Psalm 105:1-15" },
+        { day: 180, ot: "Esther 4-7", nt: "Acts 8:26-40", ps: "Proverbs 15:21-30" },
+        { day: 181, ot: "Esther 8-10", nt: "Acts 9:1-22", ps: "Psalm 105:16-36" },
+        { day: 182, ot: "Job 1-3", nt: "Acts 9:23-43", ps: "Psalm 105:37-45" },
+        { day: 183, ot: "Job 4-7", nt: "Acts 10:1-23", ps: "Psalm 106:1-12" },
+        { day: 184, ot: "Job 8-10", nt: "Acts 10:24-48", ps: "Proverbs 15:31-33" },
+        { day: 185, ot: "Job 11-13", nt: "Acts 11", ps: "Psalm 106:13-31" },
+        { day: 186, ot: "Job 14-17", nt: "Acts 12", ps: "Psalm 106:32-48" },
+        { day: 187, ot: "Job 18-20", nt: "Acts 13:1-25", ps: "Psalm 107:1-22" },
+        { day: 188, ot: "Job 21-23", nt: "Acts 13:26-52", ps: "Proverbs 16:1-11" },
+        { day: 189, ot: "Job 24-27", nt: "Acts 14", ps: "Psalm 107:23-43" },
+        { day: 190, ot: "Job 28-30", nt: "Acts 15:1-21", ps: "Psalm 108" },
+        { day: 191, ot: "Job 31-33", nt: "Acts 15:22-41", ps: "Psalm 109:1-19" },
+        { day: 192, ot: "Job 34-36", nt: "Acts 16:1-15", ps: "Proverbs 16:12-22" },
+        { day: 193, ot: "Job 37-39", nt: "Acts 16:16-40", ps: "Psalm 109:20-31" },
+        { day: 194, ot: "Job 40-42", nt: "Acts 17:1-15", ps: "Psalm 110" },
+        { day: 195, ot: "Ecclesiastes 1-3", nt: "Acts 17:16-34", ps: "Psalm 111" },
+        { day: 196, ot: "Ecclesiastes 4-6", nt: "Acts 18", ps: "Proverbs 16:23-33" },
+        { day: 197, ot: "Ecclesiastes 7-9", nt: "Acts 19:1-20", ps: "Psalm 112" },
+        { day: 198, ot: "Ecclesiastes 10-12", nt: "Acts 19:21-41", ps: "Psalm 113" },
+        { day: 199, ot: "Song of Songs 1-4", nt: "Acts 20:1-16", ps: "Psalm 114" },
+        { day: 200, ot: "Song of Songs 5-8", nt: "Acts 20:17-38", ps: "Proverbs 17:1-9" },
+        { day: 201, ot: "Isaiah 1-3", nt: "Acts 21:1-16", ps: "Psalm 115" },
+        { day: 202, ot: "Isaiah 4-6", nt: "Acts 21:17-40", ps: "Psalm 116" },
+        { day: 203, ot: "Isaiah 7-9", nt: "Acts 22", ps: "Psalm 117" },
+        { day: 204, ot: "Isaiah 10-12", nt: "Acts 23:1-11", ps: "Proverbs 17:10-20" },
+        { day: 205, ot: "Isaiah 13-15", nt: "Acts 23:12-35", ps: "Psalm 118:1-14" },
+        { day: 206, ot: "Isaiah 16-18", nt: "Acts 24", ps: "Psalm 118:15-29" },
+        { day: 207, ot: "Isaiah 19-21", nt: "Acts 25", ps: "Psalm 119:1-16" },
+        { day: 208, ot: "Isaiah 22-24", nt: "Acts 26", ps: "Proverbs 17:21-28" },
+        { day: 209, ot: "Isaiah 25-27", nt: "Acts 27:1-26", ps: "Psalm 119:17-32" },
+        { day: 210, ot: "Isaiah 28-30", nt: "Acts 27:27-44", ps: "Psalm 119:33-48" },
+        { day: 211, ot: "Isaiah 31-33", nt: "Acts 28", ps: "Psalm 119:49-64" },
+        { day: 212, ot: "Isaiah 34-36", nt: "Romans 1:1-17", ps: "Proverbs 18:1-10" },
+        { day: 213, ot: "Isaiah 37-39", nt: "Romans 1:18-32", ps: "Psalm 119:65-80" },
+        { day: 214, ot: "Isaiah 40-42", nt: "Romans 2", ps: "Psalm 119:81-96" },
+        { day: 215, ot: "Isaiah 43-45", nt: "Romans 3", ps: "Psalm 119:97-112" },
+        { day: 216, ot: "Isaiah 46-48", nt: "Romans 4", ps: "Proverbs 18:11-24" },
+        { day: 217, ot: "Isaiah 49-51", nt: "Romans 5", ps: "Psalm 119:113-128" },
+        { day: 218, ot: "Isaiah 52-54", nt: "Romans 6", ps: "Psalm 119:129-144" },
+        { day: 219, ot: "Isaiah 55-57", nt: "Romans 7", ps: "Psalm 119:145-160" },
+        { day: 220, ot: "Isaiah 58-60", nt: "Romans 8:1-18", ps: "Proverbs 19:1-9" },
+        { day: 221, ot: "Isaiah 61-63", nt: "Romans 8:19-39", ps: "Psalm 119:161-176" },
+        { day: 222, ot: "Isaiah 64-66", nt: "Romans 9:1-15", ps: "Psalm 120" },
+        { day: 223, ot: "Jeremiah 1-3", nt: "Romans 9:16-33", ps: "Psalm 121" },
+        { day: 224, ot: "Jeremiah 4-6", nt: "Romans 10", ps: "Proverbs 19:10-19" },
+        { day: 225, ot: "Jeremiah 7-9", nt: "Romans 11:1-18", ps: "Psalm 122" },
+        { day: 226, ot: "Jeremiah 10-12", nt: "Romans 11:19-36", ps: "Psalm 123" },
+        { day: 227, ot: "Jeremiah 13-15", nt: "Romans 12", ps: "Psalm 124" },
+        { day: 228, ot: "Jeremiah 16-18", nt: "Romans 13", ps: "Proverbs 19:20-29" },
+        { day: 229, ot: "Jeremiah 19-21", nt: "Romans 14", ps: "Psalm 125" },
+        { day: 230, ot: "Jeremiah 22-24", nt: "Romans 15:1-13", ps: "Psalm 126" },
+        { day: 231, ot: "Jeremiah 25-27", nt: "Romans 15:14-33", ps: "Psalm 127" },
+        { day: 232, ot: "Jeremiah 28-30", nt: "Romans 16", ps: "Proverbs 20:1-10" },
+        { day: 233, ot: "Jeremiah 31-32", nt: "1 Corinthians 1:1-17", ps: "Psalm 128" },
+        { day: 234, ot: "Jeremiah 33-35", nt: "1 Corinthians 1:18-31", ps: "Psalm 129" },
+        { day: 235, ot: "Jeremiah 36-38", nt: "1 Corinthians 2", ps: "Psalm 130" },
+        { day: 236, ot: "Jeremiah 39-41", nt: "1 Corinthians 3", ps: "Proverbs 20:11-20" },
+        { day: 237, ot: "Jeremiah 42-44", nt: "1 Corinthians 4", ps: "Psalm 131" },
+        { day: 238, ot: "Jeremiah 45-47", nt: "1 Corinthians 5", ps: "Psalm 132" },
+        { day: 239, ot: "Jeremiah 48-49", nt: "1 Corinthians 6", ps: "Psalm 133" },
+        { day: 240, ot: "Jeremiah 50", nt: "1 Corinthians 7:1-19", ps: "Proverbs 20:21-30" },
+        { day: 241, ot: "Jeremiah 51", nt: "1 Corinthians 7:20-40", ps: "Psalm 134" },
+        { day: 242, ot: "Jeremiah 52", nt: "1 Corinthians 8", ps: "Psalm 135" },
+        { day: 243, ot: "Lamentations 1-2", nt: "1 Corinthians 9", ps: "Psalm 136" },
+        { day: 244, ot: "Lamentations 3-5", nt: "1 Corinthians 10:1-13", ps: "Proverbs 21:1-10" },
+        { day: 245, ot: "Ezekiel 1-3", nt: "1 Corinthians 10:14-33", ps: "Psalm 137" },
+        { day: 246, ot: "Ezekiel 4-6", nt: "1 Corinthians 11:1-16", ps: "Psalm 138" },
+        { day: 247, ot: "Ezekiel 7-9", nt: "1 Corinthians 11:17-34", ps: "Psalm 139" },
+        { day: 248, ot: "Ezekiel 10-12", nt: "1 Corinthians 12", ps: "Proverbs 21:11-20" },
+        { day: 249, ot: "Ezekiel 13-15", nt: "1 Corinthians 13", ps: "Psalm 140" },
+        { day: 250, ot: "Ezekiel 16", nt: "1 Corinthians 14:1-19", ps: "Psalm 141" },
+        { day: 251, ot: "Ezekiel 17-19", nt: "1 Corinthians 14:20-40", ps: "Psalm 142" },
+        { day: 252, ot: "Ezekiel 20-21", nt: "1 Corinthians 15:1-32", ps: "Proverbs 21:21-31" },
+        { day: 253, ot: "Ezekiel 22-24", nt: "1 Corinthians 15:33-58", ps: "Psalm 143" },
+        { day: 254, ot: "Ezekiel 25-27", nt: "1 Corinthians 16", ps: "Psalm 144" },
+        { day: 255, ot: "Ezekiel 28-30", nt: "2 Corinthians 1", ps: "Psalm 145" },
+        { day: 256, ot: "Ezekiel 31-33", nt: "2 Corinthians 2", ps: "Proverbs 22:1-11" },
+        { day: 257, ot: "Ezekiel 34-36", nt: "2 Corinthians 3", ps: "Psalm 146" },
+        { day: 258, ot: "Ezekiel 37-39", nt: "2 Corinthians 4", ps: "Psalm 147" },
+        { day: 259, ot: "Ezekiel 40-42", nt: "2 Corinthians 5", ps: "Psalm 148" },
+        { day: 260, ot: "Ezekiel 43-45", nt: "2 Corinthians 6", ps: "Proverbs 22:12-23" },
+        { day: 261, ot: "Ezekiel 46-48", nt: "2 Corinthians 7", ps: "Psalm 149" },
+        { day: 262, ot: "Daniel 1-3", nt: "2 Corinthians 8", ps: "Psalm 150" },
+        { day: 263, ot: "Daniel 4-6", nt: "2 Corinthians 9", ps: "Psalm 1" },
+        { day: 264, ot: "Daniel 7-9", nt: "2 Corinthians 10", ps: "Proverbs 22:24-29" },
+        { day: 265, ot: "Daniel 10-12", nt: "2 Corinthians 11:1-15", ps: "Psalm 2" },
+        { day: 266, ot: "Hosea 1-3", nt: "2 Corinthians 11:16-33", ps: "Psalm 3" },
+        { day: 267, ot: "Hosea 4-6", nt: "2 Corinthians 12", ps: "Psalm 4" },
+        { day: 268, ot: "Hosea 7-9", nt: "2 Corinthians 13", ps: "Proverbs 23:1-11" },
+        { day: 269, ot: "Hosea 10-12", nt: "Galatians 1", ps: "Psalm 5" },
+        { day: 270, ot: "Hosea 13-14", nt: "Galatians 2", ps: "Psalm 6" },
+        { day: 271, ot: "Joel 1-3", nt: "Galatians 3:1-14", ps: "Psalm 7" },
+        { day: 272, ot: "Amos 1-3", nt: "Galatians 3:15-29", ps: "Proverbs 23:12-21" },
+        { day: 273, ot: "Amos 4-6", nt: "Galatians 4:1-20", ps: "Psalm 8" },
+        { day: 274, ot: "Amos 7-9", nt: "Galatians 4:21-31", ps: "Psalm 9" },
+        { day: 275, ot: "Obadiah 1", nt: "Galatians 5:1-12", ps: "Psalm 10" },
+        { day: 276, ot: "Jonah 1-4", nt: "Galatians 5:13-26", ps: "Proverbs 23:22-35" },
+        { day: 277, ot: "Micah 1-3", nt: "Galatians 6", ps: "Psalm 11" },
+        { day: 278, ot: "Micah 4-5", nt: "Ephesians 1", ps: "Psalm 12" },
+        { day: 279, ot: "Micah 6-7", nt: "Ephesians 2", ps: "Psalm 13" },
+        { day: 280, ot: "Nahum 1-3", nt: "Ephesians 3", ps: "Proverbs 24:1-14" },
+        { day: 281, ot: "Habakkuk 1-3", nt: "Ephesians 4:1-16", ps: "Psalm 14" },
+        { day: 282, ot: "Zephaniah 1-3", nt: "Ephesians 4:17-32", ps: "Psalm 15" },
+        { day: 283, ot: "Haggai 1-2", nt: "Ephesians 5:1-20", ps: "Psalm 16" },
+        { day: 284, ot: "Zechariah 1-3", nt: "Ephesians 5:21-33", ps: "Proverbs 24:15-22" },
+        { day: 285, ot: "Zechariah 4-6", nt: "Ephesians 6", ps: "Psalm 17" },
+        { day: 286, ot: "Zechariah 7-9", nt: "Philippians 1", ps: "Psalm 18:1-15" },
+        { day: 287, ot: "Zechariah 10-12", nt: "Philippians 2", ps: "Psalm 18:16-36" },
+        { day: 288, ot: "Zechariah 13-14", nt: "Philippians 3", ps: "Proverbs 24:23-34" },
+        { day: 289, ot: "Malachi 1-2", nt: "Philippians 4", ps: "Psalm 18:37-50" },
+        { day: 290, ot: "Malachi 3-4", nt: "Colossians 1:1-20", ps: "Psalm 19" },
+        { day: 291, ot: "1 Chronicles 1-2*", nt: "Colossians 1:21-29", ps: "Psalm 20" },
+        { day: 292, ot: "1 Chronicles 3-4*", nt: "Colossians 2", ps: "Proverbs 25:1-10" },
+        { day: 293, ot: "1 Chronicles 5-6*", nt: "Colossians 3", ps: "Psalm 21" },
+        { day: 294, ot: "1 Chronicles 7-9*", nt: "Colossians 4", ps: "Psalm 22" },
+        { day: 295, ot: "Ezra 1-3*", nt: "1 Thessalonians 1", ps: "Psalm 23" },
+        { day: 296, ot: "Ezra 4-6*", nt: "1 Thessalonians 2", ps: "Proverbs 25:11-20" },
+        { day: 297, ot: "Ezra 7-10*", nt: "1 Thessalonians 3", ps: "Psalm 24" },
+        { day: 298, ot: "Nehemiah 1-5*", nt: "1 Thessalonians 4", ps: "Psalm 25" },
+        { day: 299, ot: "Nehemiah 6-10*", nt: "1 Thessalonians 5", ps: "Psalm 26" },
+        { day: 300, ot: "Nehemiah 11-13*", nt: "2 Thessalonians 1", ps: "Proverbs 25:21-28" },
+        { day: 301, ot: "Esther 1-5*", nt: "2 Thessalonians 2", ps: "Psalm 27" },
+        { day: 302, ot: "Esther 6-10*", nt: "2 Thessalonians 3", ps: "Psalm 28" },
+        { day: 303, ot: "Job 1-7*", nt: "1 Timothy 1", ps: "Psalm 29" },
+        { day: 304, ot: "Job 8-14*", nt: "1 Timothy 2", ps: "Proverbs 26:1-12" },
+        { day: 305, ot: "Job 15-21*", nt: "1 Timothy 3", ps: "Psalm 30" },
+        { day: 306, ot: "Job 22-29*", nt: "1 Timothy 4", ps: "Psalm 31" },
+        { day: 307, ot: "Job 30-35*", nt: "1 Timothy 5", ps: "Psalm 32" },
+        { day: 308, ot: "Job 36-42*", nt: "1 Timothy 6", ps: "Proverbs 26:13-28" },
+        { day: 309, ot: "Psalms 1-10*", nt: "2 Timothy 1", ps: "Psalm 33" },
+        { day: 310, ot: "Psalms 11-18*", nt: "2 Timothy 2", ps: "Psalm 34" },
+        { day: 311, ot: "Psalms 19-25*", nt: "2 Timothy 3", ps: "Psalm 35" },
+        { day: 312, ot: "Psalms 26-31*", nt: "2 Timothy 4", ps: "Proverbs 27:1-12" },
+        { day: 313, ot: "Psalms 32-35*", nt: "Titus 1", ps: "Psalm 36" },
+        { day: 314, ot: "Psalms 36-39*", nt: "Titus 2", ps: "Psalm 37" },
+        { day: 315, ot: "Psalms 40-45*", nt: "Titus 3", ps: "Psalm 38" },
+        { day: 316, ot: "Psalms 46-51*", nt: "Philemon", ps: "Proverbs 27:13-27" },
+        { day: 317, ot: "Psalms 52-59*", nt: "Hebrews 1", ps: "Psalm 39" },
+        { day: 318, ot: "Psalms 60-66*", nt: "Hebrews 2", ps: "Psalm 40" },
+        { day: 319, ot: "Psalms 67-71*", nt: "Hebrews 3", ps: "Psalm 41" },
+        { day: 320, ot: "Psalms 72-77*", nt: "Hebrews 4", ps: "Proverbs 28:1-14" },
+        { day: 321, ot: "Psalms 78-80*", nt: "Hebrews 5", ps: "Psalm 42" },
+        { day: 322, ot: "Psalms 81-87*", nt: "Hebrews 6", ps: "Psalm 43" },
+        { day: 323, ot: "Psalms 88-91*", nt: "Hebrews 7", ps: "Psalm 44" },
+        { day: 324, ot: "Psalms 92-100*", nt: "Hebrews 8", ps: "Proverbs 28:15-28" },
+        { day: 325, ot: "Psalms 101-105*", nt: "Hebrews 9", ps: "Psalm 45" },
+        { day: 326, ot: "Psalms 106-118*", nt: "Hebrews 10:1-18", ps: "Psalm 46" },
+        { day: 327, ot: "Psalms 119*", nt: "Hebrews 10:19-39", ps: "Psalm 47" },
+        { day: 328, ot: "Psalms 120-134*", nt: "Hebrews 11:1-19", ps: "Proverbs 29:1-13" },
+        { day: 329, ot: "Psalms 135-139*", nt: "Hebrews 11:20-40", ps: "Psalm 48" },
+        { day: 330, ot: "Psalms 140-145*", nt: "Hebrews 12", ps: "Psalm 49" },
+        { day: 331, ot: "Psalms 146-150*", nt: "Hebrews 13", ps: "Psalm 50" },
+        { day: 332, ot: "Proverbs 1-4*", nt: "James 1", ps: "Proverbs 29:14-27" },
+        { day: 333, ot: "Proverbs 5-9*", nt: "James 2", ps: "Psalm 51" },
+        { day: 334, ot: "Proverbs 10-13*", nt: "James 3", ps: "Psalm 52" },
+        { day: 335, ot: "Proverbs 14-17*", nt: "James 4", ps: "Psalm 53" },
+        { day: 336, ot: "Proverbs 18-21*", nt: "James 5", ps: "Proverbs 30" },
+        { day: 337, ot: "Proverbs 22-24*", nt: "1 Peter 1", ps: "Psalm 54" },
+        { day: 338, ot: "Proverbs 25-28*", nt: "1 Peter 2", ps: "Psalm 55" },
+        { day: 339, ot: "Proverbs 29-31*", nt: "1 Peter 3", ps: "Psalm 56" },
+        { day: 340, ot: "Ecclesiastes 1-6*", nt: "1 Peter 4", ps: "Proverbs 31:1-9" },
+        { day: 341, ot: "Ecclesiastes 7-12*", nt: "1 Peter 5", ps: "Psalm 57" },
+        { day: 342, ot: "Song of Songs 1-8*", nt: "2 Peter 1", ps: "Psalm 58" },
+        { day: 343, ot: "Isaiah 1-4*", nt: "2 Peter 2", ps: "Psalm 59" },
+        { day: 344, ot: "Isaiah 5-8*", nt: "2 Peter 3", ps: "Proverbs 31:10-31" },
+        { day: 345, ot: "Isaiah 9-12*", nt: "1 John 1", ps: "Psalm 60" },
+        { day: 346, ot: "Isaiah 13-16*", nt: "1 John 2", ps: "Psalm 61" },
+        { day: 347, ot: "Isaiah 17-20*", nt: "1 John 3", ps: "Psalm 62" },
+        { day: 348, ot: "Isaiah 21-25*", nt: "1 John 4", ps: "Psalm 63" },
+        { day: 349, ot: "Isaiah 26-30*", nt: "1 John 5", ps: "Psalm 64" },
+        { day: 350, ot: "Isaiah 31-35*", nt: "2 John", ps: "Psalm 65" },
+        { day: 351, ot: "Isaiah 36-40*", nt: "3 John", ps: "Psalm 66" },
+        { day: 352, ot: "Isaiah 41-44*", nt: "Jude", ps: "Psalm 67" },
+        { day: 353, ot: "Isaiah 45-48*", nt: "Revelation 1", ps: "Psalm 68" },
+        { day: 354, ot: "Isaiah 49-53*", nt: "Revelation 2", ps: "Psalm 69" },
+        { day: 355, ot: "Isaiah 54-58*", nt: "Revelation 3", ps: "Psalm 70" },
+        { day: 356, ot: "Isaiah 59-63*", nt: "Revelation 4", ps: "Psalm 71" },
+        { day: 357, ot: "Isaiah 64-66*", nt: "Revelation 5", ps: "Psalm 72" },
+        { day: 358, ot: "Jeremiah 1-5*", nt: "Revelation 6", ps: "Psalm 73" },
+        { day: 359, ot: "Jeremiah 6-10*", nt: "Revelation 7", ps: "Psalm 74" },
+        { day: 360, ot: "Jeremiah 11-15*", nt: "Revelation 8", ps: "Psalm 75" },
+        { day: 361, ot: "Jeremiah 16-20*", nt: "Revelation 9", ps: "Psalm 76" },
+        { day: 362, ot: "Jeremiah 21-25*", nt: "Revelation 10", ps: "Psalm 77" },
+        { day: 363, ot: "Jeremiah 26-30*", nt: "Revelation 11", ps: "Psalm 78" },
+        { day: 364, ot: "Jeremiah 31-35*", nt: "Revelation 12-16", ps: "Psalm 79" },
+        { day: 365, ot: "Malachi 1-4*", nt: "Revelation 17-22", ps: "Psalm 80" }
+    ];
+
+    // 經卷名稱對照表 (維持不變)
+    const bibleBooksMap = {
+        "Genesis": "創世記", "Exodus": "出埃及記", "Leviticus": "利未記", "Numbers": "民數記", "Deuteronomy": "申命記",
+        "Joshua": "約書亞記", "Judges": "士師記", "Ruth": "路得記", "1 Samuel": "撒母耳記上", "2 Samuel": "撒母耳記下",
+        "1 Kings": "列王紀上", "2 Kings": "列王紀下", "1 Chronicles": "歷代志上", "2 Chronicles": "歷代志下",
+        "Ezra": "以斯拉記", "Nehemiah": "尼希米記", "Esther": "以斯帖記", "Job": "約伯記", "Psalm": "詩篇", "Psalms": "詩篇",
+        "Proverbs": "箴言", "Ecclesiastes": "傳道書", "Song of Songs": "雅歌", "Isaiah": "以賽亞書",
+        "Jeremiah": "耶利米書", "Lamentations": "耶利米哀歌", "Ezekiel": "以西結書", "Daniel": "但以理書",
+        "Hosea": "何西阿書", "Joel": "約珥書", "Amos": "阿摩司書", "Obadiah": "俄巴底亞書", "Jonah": "約拿書",
+        "Micah": "彌迦書", "Nahum": "那鴻書", "Habakkuk": "哈巴谷書", "Zephaniah": "西番雅書", "Haggai": "哈該書",
+        "Zechariah": "撒迦利亞書", "Malachi": "瑪拉基書", "Matthew": "馬太福音", "Mark": "馬可福音", "Luke": "路加福音",
+        "John": "約翰福音", "Acts": "使徒行傳", "Romans": "羅馬書", "1 Corinthians": "哥林多前書", "2 Corinthians": "哥林多後書",
+        "Galatians": "加拉太書", "Ephesians": "以弗所書", "Philippians": "腓立比書", "Colossians": "歌羅西書",
+        "1 Thessalonians": "帖撒羅尼迦前書", "2 Thessalonians": "帖撒羅尼迦後書", "1 Timothy": "提摩太前書",
+        "2 Timothy": "提摩太後書", "Titus": "提多書", "Philemon": "腓利門書", "Hebrews": "希伯來書", "James": "雅各書",
+        "1 Peter": "彼得前書", "2 Peter": "彼得後書", "1 John": "約翰一書", "2 John": "約翰二書", "3 John": "約翰三書",
+        "Jude": "猶大書", "Revelation": "啟示錄"
+    };
+
+    const FILENAME = "bible_progress.json";
+    let currentSha = null;
+    let localProgress = {};
+    let config = {};
+
+    function translateText(text) {
+        let translated = text;
+        for (const [eng, chi] of Object.entries(bibleBooksMap)) {
+            const regex = new RegExp(`\\b${eng}\\b`, 'g');
+            translated = translated.replace(regex, chi);
+        }
+        return translated;
+    }
+
+    // --- 設定與 Modal 相關功能 ---
+
+    function loadConfig() {
+        const stored = localStorage.getItem('github_config');
+        if (stored) {
+            config = JSON.parse(stored);
+            document.getElementById('gh-token').value = config.token || '';
+            document.getElementById('gh-username').value = config.username || '';
+            document.getElementById('gh-repo').value = config.repo || '';
+            return true;
+        }
+        return false;
+    }
+
+    function openSettings() {
+        loadConfig(); // 載入現有設定到輸入框
+        document.getElementById('settings-modal').style.display = 'block';
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    function saveSettings() {
+        const token = document.getElementById('gh-token').value.trim();
+        const username = document.getElementById('gh-username').value.trim();
+        const repo = document.getElementById('gh-repo').value.trim();
+
+        if (!token || !username || !repo) {
+            alert("請填寫所有欄位！");
+            return;
+        }
+
+        config = { token, username, repo };
+        localStorage.setItem('github_config', JSON.stringify(config));
+        
+        closeSettings();
+        loadFromGitHub(); // 儲存後立即嘗試同步
+    }
+
+    // --- GitHub API 邏輯 ---
+
+    async function loadFromGitHub() {
+        if (!config.token) {
+            if (!loadConfig()) {
+                updateStatus("未設定 (請點擊右上角)", "");
+                renderPlan(); // 沒設定時至少顯示空白列表
+                return;
+            }
+        }
+
+        showLoading(true);
+        updateStatus("讀取中...", "status-saving");
+
+        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
+        
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.status === 404) {
+                console.log("檔案不存在，使用本地空紀錄");
+                localProgress = {};
+                updateStatus("就緒 (新檔案)", "status-success");
+            } else if (!response.ok) {
+                throw new Error(`GitHub Error: ${response.status}`);
+            } else {
+                const data = await response.json();
+                currentSha = data.sha;
+                const content = decodeURIComponent(escape(window.atob(data.content)));
+                localProgress = JSON.parse(content);
+                updateStatus("同步完成", "status-success");
+            }
+            renderPlan();
+            
+        } catch (error) {
+            console.error(error);
+            updateStatus("同步失敗", "status-error");
+            alert("讀取失敗，請檢查設定是否正確。\n錯誤: " + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    async function saveToGitHub() {
+        if (!config.token) {
+            alert("請先設定 GitHub Token！");
+            openSettings();
+            return;
+        }
+
+        updateStatus("儲存中...", "status-saving");
+        
+        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
+        const content = JSON.stringify(localProgress);
+        const contentBase64 = window.btoa(unescape(encodeURIComponent(content)));
+
+        const body = {
+            message: "Update bible reading progress",
+            content: contentBase64
+        };
+
+        if (currentSha) {
+            body.sha = currentSha;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) throw new Error(`Save Error: ${response.status}`);
+
+            const data = await response.json();
+            currentSha = data.content.sha;
+            updateStatus("已儲存", "status-success");
+
+        } catch (error) {
+            console.error(error);
+            updateStatus("儲存失敗", "status-error");
+        }
+    }
+
+    function updateStatus(msg, className) {
+        const statusEl = document.getElementById('sync-status');
+        statusEl.innerText = msg;
+        statusEl.className = ''; 
+        if (className) statusEl.classList.add(className);
+    }
+
+    function showLoading(show) {
+        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    }
+
+    // --- UI 渲染 ---
+
+    function renderPlan() {
+        const listContainer = document.getElementById('plan-list');
+        listContainer.innerHTML = '';
+
+        rawPlanData.forEach(plan => {
+            const dayCard = document.createElement('div');
+            dayCard.className = 'day-card';
+            
+            const isChecked = localProgress[plan.day] ? 'checked' : '';
+            const completedClass = isChecked ? 'completed' : '';
+
+            const otText = translateText(plan.ot);
+            const ntText = translateText(plan.nt);
+            const psText = translateText(plan.ps);
+
+            dayCard.innerHTML = `
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="day-${plan.day}" ${isChecked} onchange="toggleDay(${plan.day})">
+                </div>
+                <div class="day-info ${completedClass}" id="info-${plan.day}">
+                    <span class="day-number">第 ${plan.day} 天</span>
+                    <div class="readings">
+                        <span class="reading-item"><strong>舊約：</strong>&nbsp;${otText}</span>
+                        <span class="reading-item"><strong>新約：</strong>&nbsp;${ntText}</span>
+                        <span class="reading-item"><strong>詩/箴：</strong>&nbsp;${psText}</span>
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(dayCard);
+        });
+        updateProgressBar();
+    }
+
+    function toggleDay(day) {
+        const checkbox = document.getElementById(`day-${day}`);
+        const infoDiv = document.getElementById(`info-${day}`);
+
+        if (checkbox.checked) {
+            localProgress[day] = true;
+            infoDiv.classList.add('completed');
+        } else {
+            delete localProgress[day];
+            infoDiv.classList.remove('completed');
+        }
+
+        updateProgressBar();
+        saveToGitHub(); // 自動儲存
+    }
+
+    function updateProgressBar() {
+        const completedCount = Object.keys(localProgress).length;
+        const totalDays = rawPlanData.length; 
+        const percentage = totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0;
+
+        document.getElementById('progressBar').style.width = percentage + '%';
+        document.getElementById('progressText').innerText = `完成進度：${completedCount} / ${totalDays} 天 (${percentage}%)`;
+    }
+
+    // 點擊 Modal 外圍關閉
+    window.onclick = function(event) {
+        const modal = document.getElementById('settings-modal');
+        if (event.target == modal) {
+            closeSettings();
+        }
+    }
+
+    // 啟動
+    loadFromGitHub();
+
+</script>
+
+</body>
+</html>
