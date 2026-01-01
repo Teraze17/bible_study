@@ -789,9 +789,9 @@
             const isChecked = localProgress[plan.day] ? 'checked' : '';
             const completedClass = isChecked ? 'completed' : '';
 
-            const otText = translateText(plan.ot);
-            const ntText = translateText(plan.nt);
-            const psText = translateText(plan.ps);
+            const otText = plan.ot;
+            const ntText = plan.nt;
+            const psText = plan.ps;
 
             dayCard.innerHTML = `
                 <div class="checkbox-wrapper">
@@ -850,4 +850,5 @@
 </script>
 
 </body>
+
 </html>
