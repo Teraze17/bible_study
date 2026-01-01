@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Bible Study Plan (GitHub)</title>
+    <title>Bible Study on Cloud</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -26,51 +26,39 @@
         .container {
             max-width: 800px;
             margin: 0 auto;
-            position: relative;
         }
 
-        /* 設定按鈕樣式 */
-        .settings-btn {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: none;
+        /* --- 按鈕排版區 (修正打架問題) --- */
+        .header-actions {
+            display: flex;
+            justify-content: flex-end; /* 靠右對齊 */
+            gap: 10px; /* 按鈕之間的間距 */
+            margin-bottom: 10px;
+        }
+
+        .action-btn {
+            background: #fff;
             border: 1px solid #ccc;
-            padding: 5px 10px;
+            padding: 6px 12px;
             border-radius: 5px;
             cursor: pointer;
             font-size: 0.9em;
-            color: #666;
-            transition: all 0.3s;
-        }
-        .settings-btn:hover {
-            background-color: #e0e0e0;
-            color: #333;
+            color: #555;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        /* 語言切換按鈕 */
-        .lang-btn {
-            position: absolute;
-            top: 0;
-            right: 80px; /* 放在設定按鈕的左邊 */
-            background: none;
-            border: 1px solid #ccc;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-            color: #666;
-            transition: all 0.3s;
-        }
-        .lang-btn:hover {
+        .action-btn:hover {
             background-color: #e0e0e0;
-            color: #333;
+            color: #000;
+            border-color: #bbb;
         }
 
         header {
             text-align: center;
             margin-bottom: 30px;
-            padding-top: 10px;
         }
 
         h1 {
@@ -78,6 +66,7 @@
             margin-bottom: 5px;
         }
 
+        /* 同步狀態標籤 */
         #sync-status {
             font-size: 0.85em;
             padding: 4px 12px;
@@ -92,6 +81,7 @@
         .status-success { color: #27ae60 !important; background-color: #eafaf1 !important; }
         .status-error { color: #c0392b !important; background-color: #fdedec !important; }
 
+        /* 進度條 */
         .progress-container {
             background-color: #e0e0e0;
             border-radius: 10px;
@@ -114,6 +104,7 @@
             color: #666;
         }
 
+        /* 每日卡片 */
         .day-card {
             background-color: var(--card-bg);
             border-radius: 8px;
@@ -135,7 +126,7 @@
         input[type="checkbox"] { transform: scale(1.5); cursor: pointer; accent-color: var(--accent-color); }
         .completed { opacity: 0.6; text-decoration: line-through; }
 
-        /* 彈出視窗 (Modal) 樣式 */
+        /* 彈出視窗 (Modal) */
         .modal {
             display: none; 
             position: fixed; 
@@ -187,7 +178,7 @@
             display: flex; justify-content: center; align-items: center;
             z-index: 999; font-size: 1.5em; color: var(--accent-color);
             flex-direction: column;
-            display: none; /* 預設隱藏 */
+            display: none;
         }
         .spinner {
             border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-color);
@@ -205,34 +196,36 @@
 
 <div id="loading-overlay">
     <div class="spinner"></div>
-    <div id="loading-text">Syncing with GitHub...</div>
+    <div id="loading-text">Loading...</div>
 </div>
 
 <div id="settings-modal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeSettings()">&times;</span>
-        <h2>GitHub 設定</h2>
-        <p style="font-size:0.9em; color:#666;">請輸入您的 GitHub 資訊以啟用雲端同步。</p>
+        <h2>GitHub Settings</h2>
+        <p style="font-size:0.9em; color:#666;">輸入 Token 以啟用雲端同步 (請確保有 repo 權限)</p>
         
         <div class="form-group">
             <label for="gh-token">GitHub Token (PAT)</label>
             <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx">
         </div>
         <div class="form-group">
-            <label for="gh-username">使用者名稱 (Username)</label>
-            <input type="text" id="gh-username" placeholder="例如: yourname">
+            <label for="gh-username">Username</label>
+            <input type="text" id="gh-username" placeholder="e.g., Teraze17">
         </div>
         <div class="form-group">
-            <label for="gh-repo">Repository 名稱</label>
-            <input type="text" id="gh-repo" placeholder="例如: bible-plan">
+            <label for="gh-repo">Repository Name</label>
+            <input type="text" id="gh-repo" placeholder="e.g., bible_study">
         </div>
-        <button class="save-btn" onclick="saveSettings()">Save and Sync</button>
+        <button class="save-btn" onclick="saveSettings()">Save & Sync</button>
     </div>
 </div>
 
 <div class="container">
-    <button class="lang-btn" id="langBtn" onclick="toggleLanguage()">🌐 English</button>
-    <button class="settings-btn" onclick="openSettings()">⚙️ Setting</button>
+    <div class="header-actions">
+        <button class="action-btn" id="langBtn" onclick="toggleLanguage()">🌐 English</button>
+        <button class="action-btn" onclick="openSettings()">⚙️ Setting</button>
+    </div>
 
     <header>
         <h1>☁️ Bible Study on Cloud</h1>
@@ -240,14 +233,13 @@
         <div class="progress-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
-        <div class="progress-text" id="progressText">完成進度：計算中...</div>
+        <div class="progress-text" id="progressText">計算中...</div>
     </header>
 
     <div id="plan-list"></div>
 </div>
 
 <script>
-    // ==========================================
     // ==========================================
     // ⚠️ 完整的 365 天讀經計畫資料 (已整理您提供的內容)
     // ==========================================
@@ -619,7 +611,7 @@
         { day: 365, ot: "Nehemiah 13", nt: "Revelation 22", ps: "Psalm 150:1-6" }
     ];
 
-    // 1. 經卷名稱對照表 (必須要有這個才能翻中文)
+    // 中英對照表
     const bibleBooksMap = {
         "Genesis": "創世記", "Exodus": "出埃及記", "Leviticus": "利未記", "Numbers": "民數記", "Deuteronomy": "申命記",
         "Joshua": "約書亞記", "Judges": "士師記", "Ruth": "路得記", "1 Samuel": "撒母耳記上", "2 Samuel": "撒母耳記下",
@@ -639,21 +631,17 @@
     };
 
     const FILENAME = "bible_progress.json";
+    const CONFIG_KEY = "github_config_v2"; // 避免與舊設定打架
     let currentSha = null;
     let localProgress = {};
     let config = {};
     
-    // 2. 設定預設語言 (會記住上次的選擇)
-    let currentLang = localStorage.getItem('bible_lang') || 'zh'; // 預設中文 'zh'
+    // 預設語言 (zh=中文, en=英文)
+    let currentLang = localStorage.getItem('bible_lang') || 'zh';
 
-    // 3. 翻譯功能 (核心邏輯)
+    // 翻譯功能
     function translateText(text) {
-        // 如果現在是英文模式，直接回傳原文，不做翻譯
-        if (currentLang === 'en') {
-            return text;
-        }
-        
-        // 如果是中文模式，進行替換
+        if (currentLang === 'en') return text;
         let translated = text;
         for (const [eng, chi] of Object.entries(bibleBooksMap)) {
             const regex = new RegExp(`\\b${eng}\\b`, 'g');
@@ -662,31 +650,167 @@
         return translated;
     }
 
-    // 4. 切換語言按鈕功能
+    // 切換語言
     function toggleLanguage() {
-        // 切換狀態
         currentLang = currentLang === 'en' ? 'zh' : 'en';
-        // 存到瀏覽器記憶體
         localStorage.setItem('bible_lang', currentLang);
-        // 更新畫面
-        updateLangButton();
         renderPlan();
     }
 
+    // 更新按鈕文字
     function updateLangButton() {
         const btn = document.getElementById('langBtn');
         if (currentLang === 'zh') {
-            btn.innerText = "🌐 English"; // 目前是中文，按鈕提示切換到英文
+            btn.innerText = "🌐 English";
         } else {
-            btn.innerText = "🌐 中文"; // 目前是英文，按鈕提示切換到中文
+            btn.innerText = "🌐 中文";
         }
     }
 
-    // ... 中間的 loadConfig, openSettings 等函式保持不變 ...
+    // --- 設定與 GitHub API ---
 
-    // 5. 更新渲染函式 (記得這一段要覆蓋原本的 renderPlan)
+    function loadConfig() {
+        const stored = localStorage.getItem(CONFIG_KEY);
+        if (stored) {
+            config = JSON.parse(stored);
+            document.getElementById('gh-token').value = config.token || '';
+            document.getElementById('gh-username').value = config.username || '';
+            document.getElementById('gh-repo').value = config.repo || '';
+            return true;
+        }
+        return false;
+    }
+
+    function openSettings() {
+        loadConfig();
+        document.getElementById('settings-modal').style.display = 'block';
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    function saveSettings() {
+        const token = document.getElementById('gh-token').value.trim();
+        const username = document.getElementById('gh-username').value.trim();
+        const repo = document.getElementById('gh-repo').value.trim();
+
+        if (!token || !username || !repo) {
+            alert("Please fill all fields!");
+            return;
+        }
+
+        config = { token, username, repo };
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        
+        closeSettings();
+        loadFromGitHub();
+    }
+
+    async function loadFromGitHub() {
+        if (!config.token && !loadConfig()) {
+            updateStatus("未設定 GitHub", "");
+            renderPlan();
+            return;
+        }
+
+        showLoading(true);
+        updateStatus("讀取中...", "status-saving");
+
+        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
+        
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+
+            if (response.status === 404) {
+                console.log("檔案不存在，使用本地空紀錄");
+                localProgress = {};
+                updateStatus("就緒 (新檔案)", "status-success");
+            } else if (!response.ok) {
+                throw new Error(`Error: ${response.status}`);
+            } else {
+                const data = await response.json();
+                currentSha = data.sha;
+                const content = decodeURIComponent(escape(window.atob(data.content)));
+                localProgress = JSON.parse(content);
+                updateStatus("同步完成", "status-success");
+            }
+            renderPlan();
+            
+        } catch (error) {
+            console.error(error);
+            updateStatus("同步失敗", "status-error");
+            // 不彈 alert，避免打擾
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    async function saveToGitHub() {
+        if (!config.token) {
+            alert("請先設定 GitHub！");
+            openSettings();
+            return;
+        }
+
+        updateStatus("儲存中...", "status-saving");
+        
+        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
+        const content = JSON.stringify(localProgress);
+        const contentBase64 = window.btoa(unescape(encodeURIComponent(content)));
+
+        const body = {
+            message: "Update progress",
+            content: contentBase64
+        };
+
+        if (currentSha) {
+            body.sha = currentSha;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) throw new Error(`Save Error: ${response.status}`);
+
+            const data = await response.json();
+            currentSha = data.content.sha;
+            updateStatus("已儲存", "status-success");
+
+        } catch (error) {
+            console.error(error);
+            updateStatus("儲存失敗", "status-error");
+        }
+    }
+
+    function updateStatus(msg, className) {
+        const statusEl = document.getElementById('sync-status');
+        statusEl.innerText = msg;
+        statusEl.className = ''; 
+        if (className) statusEl.classList.add(className);
+    }
+
+    function showLoading(show) {
+        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+    }
+
+    // --- UI 渲染 ---
+
     function renderPlan() {
-        updateLangButton(); // 確保按鈕文字正確
+        updateLangButton();
         const listContainer = document.getElementById('plan-list');
         listContainer.innerHTML = '';
 
@@ -697,12 +821,12 @@
             const isChecked = localProgress[plan.day] ? 'checked' : '';
             const completedClass = isChecked ? 'completed' : '';
 
-            // 這裡呼叫 translateText，它會根據 currentLang 決定要不要翻
+            // 雙語內容
             const otText = translateText(plan.ot);
             const ntText = translateText(plan.nt);
             const psText = translateText(plan.ps);
 
-            // 根據語言改變標籤 (Old Testament -> 舊約)
+            // 雙語標籤
             const labelOT = currentLang === 'zh' ? '舊約' : 'OT';
             const labelNT = currentLang === 'zh' ? '新約' : 'NT';
             const labelPS = currentLang === 'zh' ? '詩/箴' : 'Ps/Prov';
@@ -747,11 +871,14 @@
         const totalDays = rawPlanData.length; 
         const percentage = totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0;
 
+        const labelText = currentLang === 'zh' ? '完成進度' : 'Progress';
+        const labelDay = currentLang === 'zh' ? '天' : 'days';
+
         document.getElementById('progressBar').style.width = percentage + '%';
-        document.getElementById('progressText').innerText = `完成進度：${completedCount} / ${totalDays} 天 (${percentage}%)`;
+        document.getElementById('progressText').innerText = `${labelText}：${completedCount} / ${totalDays} ${labelDay} (${percentage}%)`;
     }
 
-    // 點擊 Modal 外圍關閉
+    // Modal 點擊關閉
     window.onclick = function(event) {
         const modal = document.getElementById('settings-modal');
         if (event.target == modal) {
@@ -759,7 +886,7 @@
         }
     }
 
-    // 啟動
+    // 啟動程式
     loadFromGitHub();
 
 </script>
