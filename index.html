@@ -48,6 +48,25 @@
             color: #333;
         }
 
+        /* 語言切換按鈕 */
+        .lang-btn {
+            position: absolute;
+            top: 0;
+            right: 80px; /* 放在設定按鈕的左邊 */
+            background: none;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .lang-btn:hover {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
         header {
             text-align: center;
             margin-bottom: 30px;
@@ -212,10 +231,11 @@
 </div>
 
 <div class="container">
+    <button class="lang-btn" id="langBtn" onclick="toggleLanguage()">🌐 English</button>
     <button class="settings-btn" onclick="openSettings()">⚙️ Setting</button>
 
     <header>
-        <h1>☁️ Bible Study</h1>
+        <h1>☁️ Bible Study on Cloud</h1>
         <div id="sync-status">未設定 GitHub</div>
         <div class="progress-container">
             <div class="progress-bar" id="progressBar"></div>
@@ -599,13 +619,13 @@
         { day: 365, ot: "Nehemiah 13", nt: "Revelation 22", ps: "Psalm 150:1-6" }
     ];
 
-    // 經卷名稱對照表 (維持不變)
+    // 1. 經卷名稱對照表 (必須要有這個才能翻中文)
     const bibleBooksMap = {
         "Genesis": "創世記", "Exodus": "出埃及記", "Leviticus": "利未記", "Numbers": "民數記", "Deuteronomy": "申命記",
         "Joshua": "約書亞記", "Judges": "士師記", "Ruth": "路得記", "1 Samuel": "撒母耳記上", "2 Samuel": "撒母耳記下",
         "1 Kings": "列王紀上", "2 Kings": "列王紀下", "1 Chronicles": "歷代志上", "2 Chronicles": "歷代志下",
         "Ezra": "以斯拉記", "Nehemiah": "尼希米記", "Esther": "以斯帖記", "Job": "約伯記", "Psalm": "詩篇", "Psalms": "詩篇",
-        "Proverbs": "箴言", "Ecclesiastes": "傳道書", "Song of Songs": "雅歌", "Isaiah": "以賽亞書",
+        "Proverbs": "箴言", "Ecclesiastes": "傳道書", "Song of Songs": "雅歌", "Song": "雅歌", "Isaiah": "以賽亞書",
         "Jeremiah": "耶利米書", "Lamentations": "耶利米哀歌", "Ezekiel": "以西結書", "Daniel": "但以理書",
         "Hosea": "何西阿書", "Joel": "約珥書", "Amos": "阿摩司書", "Obadiah": "俄巴底亞書", "Jonah": "約拿書",
         "Micah": "彌迦書", "Nahum": "那鴻書", "Habakkuk": "哈巴谷書", "Zephaniah": "西番雅書", "Haggai": "哈該書",
@@ -622,8 +642,18 @@
     let currentSha = null;
     let localProgress = {};
     let config = {};
+    
+    // 2. 設定預設語言 (會記住上次的選擇)
+    let currentLang = localStorage.getItem('bible_lang') || 'zh'; // 預設中文 'zh'
 
+    // 3. 翻譯功能 (核心邏輯)
     function translateText(text) {
+        // 如果現在是英文模式，直接回傳原文，不做翻譯
+        if (currentLang === 'en') {
+            return text;
+        }
+        
+        // 如果是中文模式，進行替換
         let translated = text;
         for (const [eng, chi] of Object.entries(bibleBooksMap)) {
             const regex = new RegExp(`\\b${eng}\\b`, 'g');
@@ -632,153 +662,31 @@
         return translated;
     }
 
-    // --- 設定與 Modal 相關功能 ---
-
-    function loadConfig() {
-        const stored = localStorage.getItem('github_config');
-        if (stored) {
-            config = JSON.parse(stored);
-            document.getElementById('gh-token').value = config.token || '';
-            document.getElementById('gh-username').value = config.username || '';
-            document.getElementById('gh-repo').value = config.repo || '';
-            return true;
-        }
-        return false;
+    // 4. 切換語言按鈕功能
+    function toggleLanguage() {
+        // 切換狀態
+        currentLang = currentLang === 'en' ? 'zh' : 'en';
+        // 存到瀏覽器記憶體
+        localStorage.setItem('bible_lang', currentLang);
+        // 更新畫面
+        updateLangButton();
+        renderPlan();
     }
 
-    function openSettings() {
-        loadConfig(); // 載入現有設定到輸入框
-        document.getElementById('settings-modal').style.display = 'block';
-    }
-
-    function closeSettings() {
-        document.getElementById('settings-modal').style.display = 'none';
-    }
-
-    function saveSettings() {
-        const token = document.getElementById('gh-token').value.trim();
-        const username = document.getElementById('gh-username').value.trim();
-        const repo = document.getElementById('gh-repo').value.trim();
-
-        if (!token || !username || !repo) {
-            alert("請填寫所有欄位！");
-            return;
-        }
-
-        config = { token, username, repo };
-        localStorage.setItem('github_config', JSON.stringify(config));
-        
-        closeSettings();
-        loadFromGitHub(); // 儲存後立即嘗試同步
-    }
-
-    // --- GitHub API 邏輯 ---
-
-    async function loadFromGitHub() {
-        if (!config.token) {
-            if (!loadConfig()) {
-                updateStatus("未設定 (請點擊右上角)", "");
-                renderPlan(); // 沒設定時至少顯示空白列表
-                return;
-            }
-        }
-
-        showLoading(true);
-        updateStatus("讀取中...", "status-saving");
-
-        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
-        
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `token ${config.token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
-
-            if (response.status === 404) {
-                console.log("檔案不存在，使用本地空紀錄");
-                localProgress = {};
-                updateStatus("就緒 (新檔案)", "status-success");
-            } else if (!response.ok) {
-                throw new Error(`GitHub Error: ${response.status}`);
-            } else {
-                const data = await response.json();
-                currentSha = data.sha;
-                const content = decodeURIComponent(escape(window.atob(data.content)));
-                localProgress = JSON.parse(content);
-                updateStatus("同步完成", "status-success");
-            }
-            renderPlan();
-            
-        } catch (error) {
-            console.error(error);
-            updateStatus("同步失敗", "status-error");
-            alert("讀取失敗，請檢查設定是否正確。\n錯誤: " + error.message);
-        } finally {
-            showLoading(false);
+    function updateLangButton() {
+        const btn = document.getElementById('langBtn');
+        if (currentLang === 'zh') {
+            btn.innerText = "🌐 English"; // 目前是中文，按鈕提示切換到英文
+        } else {
+            btn.innerText = "🌐 中文"; // 目前是英文，按鈕提示切換到中文
         }
     }
 
-    async function saveToGitHub() {
-        if (!config.token) {
-            alert("請先設定 GitHub Token！");
-            openSettings();
-            return;
-        }
+    // ... 中間的 loadConfig, openSettings 等函式保持不變 ...
 
-        updateStatus("儲存中...", "status-saving");
-        
-        const url = `https://api.github.com/repos/${config.username}/${config.repo}/contents/${FILENAME}`;
-        const content = JSON.stringify(localProgress);
-        const contentBase64 = window.btoa(unescape(encodeURIComponent(content)));
-
-        const body = {
-            message: "Update bible reading progress",
-            content: contentBase64
-        };
-
-        if (currentSha) {
-            body.sha = currentSha;
-        }
-
-        try {
-            const response = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${config.token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
-
-            if (!response.ok) throw new Error(`Save Error: ${response.status}`);
-
-            const data = await response.json();
-            currentSha = data.content.sha;
-            updateStatus("已儲存", "status-success");
-
-        } catch (error) {
-            console.error(error);
-            updateStatus("儲存失敗", "status-error");
-        }
-    }
-
-    function updateStatus(msg, className) {
-        const statusEl = document.getElementById('sync-status');
-        statusEl.innerText = msg;
-        statusEl.className = ''; 
-        if (className) statusEl.classList.add(className);
-    }
-
-    function showLoading(show) {
-        document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
-    }
-
-    // --- UI 渲染 ---
-
+    // 5. 更新渲染函式 (記得這一段要覆蓋原本的 renderPlan)
     function renderPlan() {
+        updateLangButton(); // 確保按鈕文字正確
         const listContainer = document.getElementById('plan-list');
         listContainer.innerHTML = '';
 
@@ -789,20 +697,27 @@
             const isChecked = localProgress[plan.day] ? 'checked' : '';
             const completedClass = isChecked ? 'completed' : '';
 
+            // 這裡呼叫 translateText，它會根據 currentLang 決定要不要翻
             const otText = translateText(plan.ot);
             const ntText = translateText(plan.nt);
             const psText = translateText(plan.ps);
+
+            // 根據語言改變標籤 (Old Testament -> 舊約)
+            const labelOT = currentLang === 'zh' ? '舊約' : 'OT';
+            const labelNT = currentLang === 'zh' ? '新約' : 'NT';
+            const labelPS = currentLang === 'zh' ? '詩/箴' : 'Ps/Prov';
+            const labelDay = currentLang === 'zh' ? `第 ${plan.day} 天` : `Day ${plan.day}`;
 
             dayCard.innerHTML = `
                 <div class="checkbox-wrapper">
                     <input type="checkbox" id="day-${plan.day}" ${isChecked} onchange="toggleDay(${plan.day})">
                 </div>
                 <div class="day-info ${completedClass}" id="info-${plan.day}">
-                    <span class="day-number">第 ${plan.day} 天</span>
+                    <span class="day-number">${labelDay}</span>
                     <div class="readings">
-                        <span class="reading-item"><strong>舊約：</strong>&nbsp;${otText}</span>
-                        <span class="reading-item"><strong>新約：</strong>&nbsp;${ntText}</span>
-                        <span class="reading-item"><strong>詩/箴：</strong>&nbsp;${psText}</span>
+                        <span class="reading-item"><strong>${labelOT}：</strong>&nbsp;${otText}</span>
+                        <span class="reading-item"><strong>${labelNT}：</strong>&nbsp;${ntText}</span>
+                        <span class="reading-item"><strong>${labelPS}：</strong>&nbsp;${psText}</span>
                     </div>
                 </div>
             `;
@@ -850,5 +765,4 @@
 </script>
 
 </body>
-
 </html>
